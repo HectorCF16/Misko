@@ -20,10 +20,18 @@ fn move_relative(x: i32, y: i32) {
 fn transform_array_of_u8_to_i32(array: [u8; 4] ) -> i32 {
     let mut number: i32 = 0;
     //first element is the most valuable (significative)
-    for i in 0..4{
+    let first_element = array[0];
+    let is_negative = first_element >= 128;
+    if is_negative {
+        let first_element_without_negative_bit = first_element - 128;
+        let addition: i32 = i32::from(first_element_without_negative_bit) * 256_i32.pow(3);
+        number = addition;
+    }
+    for i in 1..4{
         let addition: i32 = i32::from(array[i]) * 256_i32.pow(3 - (i as u32));
         number += addition;
-    }    
+    }
+    number = number * (-1 as i32).pow(is_negative as u32);
     return number;
 }
 
