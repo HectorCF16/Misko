@@ -60,7 +60,21 @@ fn main() {
             println!("Successfully connected to server in port 3333");
             let mut x = -1;
             let mut y = -1;
+            let password = 205990267;
 
+
+            stream.write(&transform_i32_to_array_of_u8(password)).unwrap();
+
+            let decomposed_message = DecomposedMessage{
+                position_x: 40,
+                position_y: 0,
+                press: true,
+                release: false,
+                right: false,
+            };
+            let msg = compose_message(decomposed_message);
+            stream.write(&msg).unwrap();
+            thread::sleep(time::Duration::from_millis(400));
             /*loop{
                 let ten_millis = time::Duration::from_millis(200);
                 thread::sleep(ten_millis);
@@ -81,7 +95,7 @@ fn main() {
                 
                 stream.write(&msg).unwrap();
                 println!("Sent Hello, awaiting reply...");
-            }*/
+            }
             let decomposed_message = DecomposedMessage{
                 position_x: 40,
                 position_y: 0,
@@ -133,7 +147,7 @@ fn main() {
                 right: false,
             };
             let msg = compose_message(decomposed_message);
-            stream.write(&msg).unwrap();
+            stream.write(&msg).unwrap();*/
         },
         Err(e) => {
             println!("Failed to connect: {}", e);

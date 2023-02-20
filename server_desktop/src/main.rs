@@ -22,15 +22,22 @@ fn transform_array_of_u8_to_i32(array: [u8; 4] ) -> i32 {
     //first element is the most valuable (significative)
     let first_element = array[0];
     let is_negative = first_element >= 128;
+    let mut first_element_without_negative_bit = first_element;
+
     if is_negative {
-        let first_element_without_negative_bit = first_element - 128;
-        let addition: i32 = i32::from(first_element_without_negative_bit) * 256_i32.pow(3);
-        number = addition;
+        first_element_without_negative_bit = first_element - 128;
     }
+
+    let addition: i32 = i32::from(first_element_without_negative_bit) * 256_i32.pow(3);
+    number = addition;
+    println!("byte 0: {}", first_element_without_negative_bit);
+
     for i in 1..4{
         let addition: i32 = i32::from(array[i]) * 256_i32.pow(3 - (i as u32));
         number += addition;
+        println!("byte {}: {}", i , array[i]);
     }
+    
     number = number * (-1 as i32).pow(is_negative as u32);
     return number;
 }
@@ -52,6 +59,15 @@ fn data_to_x_y_arrays(data: [u8; 50]) -> (DecomposedMessage){
     }
 }
 
+fn data_to_password(data: [u8; 50]) -> i32 {
+    let mut password_array = [0 as u8; 4];
+    for i in 0..4{
+        password_array[i] = data[i];
+    }
+
+    transform_array_of_u8_to_i32(password_array)
+} 
+
 fn is_zero(array: [u8; 50]) -> bool{
     for byte in array{
         if byte != 0 as u8 {
@@ -64,31 +80,42 @@ fn is_zero(array: [u8; 50]) -> bool{
 fn handle_client(mut stream: TcpStream) {
     let mut data = [0 as u8; 50]; // using 50 byte buffer
     
+    let correct_password = 205990267;
+    let mut password_entered = false;
     while match stream.read(&mut data) {
         Ok(size) => {
-            if !is_zero(data) {
-                let decomposed_message = data_to_x_y_arrays(data);
-
-                //print x array
-                print!("x_array: ");
-                for byte in decomposed_message.position_x{
-                    print!("{}", byte);
+            if !password_entered {
+                password_entered = correct_password == data_to_password(data);
+                println!("this: {}", data_to_password(data))
+            } 
+            
+            else {
+                println!("correct");
+                if !is_zero(data) {
+                    let decomposed_message = data_to_x_y_arrays(data);
+    
+                    //print x array
+                    print!("x_array: ");
+                    for byte in decomposed_message.position_x{
+                        print!("{}", byte);
+                    }
+                    println!("");
+                    
+                    //print y array
+                    print!("y_array: ");
+                    for byte in decomposed_message.position_y{
+                        print!("{}", byte);
+                    }
+                    println!("");
+    
+                    let x = transform_array_of_u8_to_i32(decomposed_message.position_x);
+                    let y = transform_array_of_u8_to_i32(decomposed_message.position_y);
+                    move_relative(x, y);
+                    println!("x: {}, y: {}", x, y);
+                    data = [0 as u8; 50];
                 }
-                println!("");
-                
-                //print y array
-                print!("y_array: ");
-                for byte in decomposed_message.position_y{
-                    print!("{}", byte);
-                }
-                println!("");
-
-                let x = transform_array_of_u8_to_i32(decomposed_message.position_x);
-                let y = transform_array_of_u8_to_i32(decomposed_message.position_y);
-                move_relative(x, y);
-                println!("x: {}, y: {}", x, y);
-                data = [0 as u8; 50];
             }
+            
         true
         },
         Err(_) => {
