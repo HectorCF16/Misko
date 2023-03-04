@@ -1,15 +1,54 @@
 use std::thread;
 use std::net::{TcpListener, TcpStream, Shutdown};
-use std::io::{Read, Write};
+use std::io::{Read};
 use enigo::*;
 
-struct DecomposedMessage {
-    position_x: [u8; 4],
-    position_y: [u8; 4],
+const MESSAGE_NUMBER_OF_BYTES: usize = 50;
+const BYTE_NUMBER_OF_BYTES: usize = 4;
+
+
+struct Password {
+    enteredPassword: String,
+}
+
+struct MouseInputs {
+    position_x: i32,
+    position_y: i32,
     left_click: bool,
     release_left_click: bool,
     right_click: bool,
     release_right_click: bool,
+}
+
+impl MouseInputs{
+    pub fn new(data: [u8; MESSAGE_NUMBER_OF_BYTES]) -> MouseInputs {
+        let mut x_array = [0 as u8; BYTE_NUMBER_OF_BYTES];
+        let mut y_array = [0 as u8; BYTE_NUMBER_OF_BYTES];
+
+        for i in 0..BYTE_NUMBER_OF_BYTES {
+            x_array[i] = data[i];
+            y_array[i] = data[i + BYTE_NUMBER_OF_BYTES];
+        }
+
+        let x = transform_array_of_u8_to_i32(x_array);
+        let y = transform_array_of_u8_to_i32(y_array);
+        
+        MouseInputs{
+            position_x: x,
+            position_y: y,
+            left_click: false,
+            release_left_click: false,
+            right_click: false,
+            release_right_click: false,
+        }
+    }
+}
+
+fn execute_mouse_inputs(decomposedMessage: MouseInputs){
+    if decomposedMessage.position_x != 0 || decomposedMessage.position_y != 0 {
+        move_relative(decomposedMessage.position_x, decomposedMessage.position_y);
+    }
+    
 }
 
 fn move_relative(x: i32, y: i32) {
@@ -17,7 +56,7 @@ fn move_relative(x: i32, y: i32) {
     enigo.mouse_move_relative(x, y);
 }
 
-fn transform_array_of_u8_to_i32(array: [u8; 4] ) -> i32 {
+fn transform_array_of_u8_to_i32(array: [u8; BYTE_NUMBER_OF_BYTES] ) -> i32 {
     let mut number: i32 = 0;
     //first element is the most valuable (significative)
     let first_element = array[0];
@@ -32,7 +71,7 @@ fn transform_array_of_u8_to_i32(array: [u8; 4] ) -> i32 {
     number = addition;
     println!("byte 0: {}", first_element_without_negative_bit);
 
-    for i in 1..4{
+    for i in 1..BYTE_NUMBER_OF_BYTES{
         let addition: i32 = i32::from(array[i]) * 256_i32.pow(3 - (i as u32));
         number += addition;
         println!("byte {}: {}", i , array[i]);
@@ -42,33 +81,24 @@ fn transform_array_of_u8_to_i32(array: [u8; 4] ) -> i32 {
     return number;
 }
 
-fn data_to_x_y_arrays(data: [u8; 50]) -> (DecomposedMessage){
-    let mut x_array = [0 as u8; 4];
-    let mut y_array = [0 as u8; 4];
-    for i in 0..4 {
-        x_array[i] = data[i];
-        y_array[i] = data[i + 4];
-    }
-    DecomposedMessage{
-        position_x: x_array,
-        position_y: y_array,
-        left_click: false,
-        release_left_click: false,
-        right_click: false,
-        release_right_click: false,
-    }
-}
-
-fn data_to_password(data: [u8; 50]) -> i32 {
-    let mut password_array = [0 as u8; 4];
-    for i in 0..4{
+fn data_to_password(data: [u8; MESSAGE_NUMBER_OF_BYTES]) -> i32 {
+    let mut password_array = [0 as u8; BYTE_NUMBER_OF_BYTES];
+    for i in 0..BYTE_NUMBER_OF_BYTES{
         password_array[i] = data[i];
     }
 
     transform_array_of_u8_to_i32(password_array)
 } 
 
-fn is_zero(array: [u8; 50]) -> bool{
+/*
+fn copy_byte_array(source: [u8; ], destination: [u8; BYTE_NUMBER_OF_BYTES]){
+    for i in 0..BYTE_NUMBER_OF_BYTES{
+        password_array[i] = data[i];
+    }
+}
+ */
+
+fn is_zero(array: [u8; MESSAGE_NUMBER_OF_BYTES]) -> bool{
     for byte in array{
         if byte != 0 as u8 {
             return false;
@@ -77,45 +107,26 @@ fn is_zero(array: [u8; 50]) -> bool{
     true
 }
 
+fn message_entered(has_password_entered: bool, correct_password: i32, message: [u8; MESSAGE_NUMBER_OF_BYTES]) -> bool {
+    if has_password_entered {
+        if !is_zero(message) {
+            
+            let decomposed_message = MouseInputs::new(message);
+            move_relative(decomposed_message.position_x, decomposed_message.position_y);
+            println!("x: {}, y: {}", decomposed_message.position_x, decomposed_message.position_y);
+        }
+    }
+    correct_password == data_to_password(message)
+}
+
 fn handle_client(mut stream: TcpStream) {
-    let mut data = [0 as u8; 50]; // using 50 byte buffer
-    
+    let mut message = [0 as u8; MESSAGE_NUMBER_OF_BYTES];
     let correct_password = 205990267;
-    let mut password_entered = false;
-    while match stream.read(&mut data) {
+    let mut has_password_entered = false;
+    while match stream.read(&mut message) {
         Ok(size) => {
-            if !password_entered {
-                password_entered = correct_password == data_to_password(data);
-                println!("this: {}", data_to_password(data))
-            } 
-            
-            else {
-                println!("correct");
-                if !is_zero(data) {
-                    let decomposed_message = data_to_x_y_arrays(data);
-    
-                    //print x array
-                    print!("x_array: ");
-                    for byte in decomposed_message.position_x{
-                        print!("{}", byte);
-                    }
-                    println!("");
-                    
-                    //print y array
-                    print!("y_array: ");
-                    for byte in decomposed_message.position_y{
-                        print!("{}", byte);
-                    }
-                    println!("");
-    
-                    let x = transform_array_of_u8_to_i32(decomposed_message.position_x);
-                    let y = transform_array_of_u8_to_i32(decomposed_message.position_y);
-                    move_relative(x, y);
-                    println!("x: {}, y: {}", x, y);
-                    data = [0 as u8; 50];
-                }
-            }
-            
+            has_password_entered = message_entered(has_password_entered, correct_password, message);
+            message = [0 as u8; MESSAGE_NUMBER_OF_BYTES];
         true
         },
         Err(_) => {
