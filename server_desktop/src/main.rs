@@ -36,6 +36,7 @@ fn handle_client(mut stream: TcpStream) {
     let mut has_password_entered = false;
     while match stream.read(&mut message) {
         Ok(_size) => {
+            //println!("{:#?}", message);
             has_password_entered = message_entered(has_password_entered, correct_password, message);
             message = [0 as u8; MESSAGE_NUMBER_OF_BYTES];
         true
@@ -51,6 +52,7 @@ fn handle_client(mut stream: TcpStream) {
 fn message_entered(has_password_entered: bool, correct_password: i32, message: [u8; MESSAGE_NUMBER_OF_BYTES]) -> bool {
     if has_password_entered {
         execute_input_message(message);
+        return true;
     }
     check_password(correct_password, message)
 }
@@ -180,20 +182,21 @@ mod message {
         }
 
         pub fn get_mouse_y_position_bytes(&self) -> [u8; BITS_32_NUMBER_OF_BYTES]{
-            let mut x_position_bytes = [0 as u8; BITS_32_NUMBER_OF_BYTES];
+            let mut y_position_bytes = [0 as u8; BITS_32_NUMBER_OF_BYTES];
             
             for i in 0..4 {
-                x_position_bytes[i] = self.message[i + 4];
+                y_position_bytes[i] = self.message[i + 4];
             }
 
-            x_position_bytes
+            println!("{:#?}", y_position_bytes);
+
+            y_position_bytes
         }
     }
 }
 
 mod four_bytes_into_i32 {
     const BITS_32_NUMBER_OF_BYTES: usize = 4;
-
 
     pub fn transform_array_of_u8_to_i32(array: [u8; BITS_32_NUMBER_OF_BYTES]) -> i32 {
         let mut number: i32;
@@ -208,16 +211,18 @@ mod four_bytes_into_i32 {
 
         let addition: i32 = i32::from(first_element_without_negative_bit) * 256_i32.pow(3);
         number = addition;
-        println!("byte 0: {}", first_element_without_negative_bit);
+        //println!("byte 0: {}", first_element_without_negative_bit);
 
         for i in 1..BITS_32_NUMBER_OF_BYTES {
             let addition: i32 = i32::from(array[i]) * 256_i32.pow(3 - (i as u32));
             number += addition;
-            println!("byte {}: {}", i, array[i]);
+            //println!("byte {}: {}", i, array[i]);
         }
 
         number = number * (-1 as i32).pow(is_negative as u32);
         return number;
     }
+
+    
 
 }
