@@ -75,7 +75,7 @@ fn main() {
             let msg = compose_message(decomposed_message);
             stream.write(&msg).unwrap();
             thread::sleep(time::Duration::from_millis(400));
-            /*loop{
+            loop{
                 let ten_millis = time::Duration::from_millis(200);
                 thread::sleep(ten_millis);
                 if x < 0 && x > -11 {
@@ -147,7 +147,7 @@ fn main() {
                 right: false,
             };
             let msg = compose_message(decomposed_message);
-            stream.write(&msg).unwrap();*/
+            stream.write(&msg).unwrap();
         },
         Err(e) => {
             println!("Failed to connect: {}", e);
