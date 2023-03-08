@@ -1,7 +1,8 @@
 use server::Server;
 
 fn main() {
-    Server::listen("3333");
+    let server = Server::new("3333");
+    server.listen();
 }
 
 mod server {
@@ -16,13 +17,16 @@ mod server {
     }
 
     impl Server {
-        pub fn listen(port: &str) -> Self {
+        pub fn new(port: &str) -> Self {
             let address = format!("0.0.0.0:{}", port);
-            let listener = TcpListener::bind(address).unwrap();
-            for stream in listener.incoming() {
+            let listener = TcpListener::bind(address).unwrap();            
+            Server { listener }
+        }
+
+        pub fn listen(&self) {
+            for stream in self.listener.incoming() {
                 connect_to_client(stream);
             }
-            Server { listener }
         }
     }
 
@@ -336,12 +340,10 @@ mod server {
 
             let addition: i32 = i32::from(first_element_without_negative_bit) * 256_i32.pow(3);
             number = addition;
-            //println!("byte 0: {}", first_element_without_negative_bit);
 
             for i in 1..BITS_32_NUMBER_OF_BYTES {
                 let addition: i32 = i32::from(array[i]) * 256_i32.pow(3 - (i as u32));
                 number += addition;
-                //println!("byte {}: {}", i, array[i]);
             }
 
             number = number * (-1 as i32).pow(is_negative as u32);
