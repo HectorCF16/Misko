@@ -1,7 +1,8 @@
 use server::Server;
 
 fn main() {
-    let server = Server::new("3333");
+    let correct_password = 205990267;
+    let server = Server::new("3333", correct_password);
     server.listen();
 }
 
@@ -14,26 +15,27 @@ mod server {
 
     pub struct Server {
         listener: TcpListener,
+        password: i32
     }
 
     impl Server {
-        pub fn new(port: &str) -> Self {
+        pub fn new(port: &str, password: i32) -> Self {
             let address = format!("0.0.0.0:{}", port);
-            let listener = TcpListener::bind(address).unwrap();            
-            Server { listener }
+            let listener = TcpListener::bind(address).unwrap();
+            Server { listener, password }
         }
 
         pub fn listen(&self) {
             for stream in self.listener.incoming() {
-                connect_to_client(stream);
+                connect_to_client(stream, self.password);
             }
         }
     }
 
-    fn connect_to_client(result: Result<TcpStream, std::io::Error>) {
+    fn connect_to_client(result: Result<TcpStream, std::io::Error>, password: i32) {
         match result {
-            Ok(mut stream) => {
-                successful_tcp_connection(stream);
+            Ok(stream) => {
+                successful_tcp_connection(stream, password);
             }
             Err(e) => {
                 connection_failed(e);
@@ -41,28 +43,25 @@ mod server {
         }
     }
 
-    fn successful_tcp_connection(stream: TcpStream) {
+    fn successful_tcp_connection(stream: TcpStream, password: i32) {
         println!("New connection: {}", stream.peer_addr().unwrap());
 
-        thread::spawn(move || handle_client_connection(stream));
+        thread::spawn(move || handle_client_connection(stream, password));
+    }
+
+    fn handle_client_connection(stream: TcpStream, password: i32) {
+        let mut client_handler = client::ClientHandler::new(stream, password);
+        client_handler.handle_client_messages();
     }
 
     fn connection_failed(e: std::io::Error) {
         println!("Error: {}", e);
     }
 
-    fn handle_client_connection(mut stream: TcpStream) {
-        let mut message = [0 as u8; MESSAGE_NUMBER_OF_BYTES];
-        let correct_password = 205990267;
-        let mut client_handler = client::ClientHandler::new(stream, correct_password);
-        client_handler.handle_client_messages();
-    }
-
     mod client {
         use std::{
-            error::Error,
             io::Read,
-            net::{Shutdown, TcpListener, TcpStream},
+            net::{TcpStream},
         };
 
         use crate::server::{
@@ -70,8 +69,6 @@ mod server {
         };
 
         const MESSAGE_NUMBER_OF_BYTES: usize = 50;
-
-        const BITS_32_NUMBER_OF_BYTES: usize = 4;
 
         pub struct ClientHandler {
             stream: TcpStream,
