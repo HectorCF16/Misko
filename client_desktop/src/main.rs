@@ -79,7 +79,7 @@ mod client {
         }
 
         pub fn send_mouse_input(&mut self, mouse_input: MouseInputs){
-            let mut message_array = mouse_input.get_byte_array();
+            let message_array = mouse_input.get_byte_array();
 
             self.stream.write(&message_array);
         }
