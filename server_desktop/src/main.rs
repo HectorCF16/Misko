@@ -1,7 +1,4 @@
-use four_bytes_into_i32::transform_array_of_u8_to_i32;
-use message::InputByteArray;
-use std::io::Read;
-use std::net::{Shutdown, TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream};
 use std::thread;
 
 const MESSAGE_NUMBER_OF_BYTES: usize = 50;
@@ -46,38 +43,20 @@ fn handle_client_connection(mut stream: TcpStream) {
     client_handler.handle_client_messages();
 }
 
-
-fn check_password(correct_password: i32, message: [u8; MESSAGE_NUMBER_OF_BYTES]) -> bool {
-    correct_password == data_to_password(message)
-}
-
-fn data_to_password(data: [u8; MESSAGE_NUMBER_OF_BYTES]) -> i32 {
-    let mut password_array = [0 as u8; BITS_32_NUMBER_OF_BYTES];
-    for i in 0..BITS_32_NUMBER_OF_BYTES {
-        password_array[i] = data[i];
-    }
-
-    transform_array_of_u8_to_i32(password_array)
-}
-
-/*
-fn copy_byte_array(source: [u8; ], destination: [u8; BYTE_NUMBER_OF_BYTES]){
-    for i in 0..BYTE_NUMBER_OF_BYTES{
-        password_array[i] = data[i];
-    }
-}
-*/
-
-
 mod client {
-    use std::{net::{Shutdown, TcpListener, TcpStream}, io::Read, error::Error};
+    use std::{
+        error::Error,
+        io::Read,
+        net::{Shutdown, TcpListener, TcpStream},
+    };
 
-    use crate::{message::InputByteArray, four_bytes_into_i32::transform_array_of_u8_to_i32, mouse_input};
+    use crate::{
+        four_bytes_into_i32::transform_array_of_u8_to_i32, message::InputByteArray, mouse_input,
+    };
 
     const MESSAGE_NUMBER_OF_BYTES: usize = 50;
 
     const BITS_32_NUMBER_OF_BYTES: usize = 4;
- 
 
     pub struct ClientHandler {
         stream: TcpStream,
@@ -86,15 +65,14 @@ mod client {
     }
     impl ClientHandler {
         pub fn new(stream: TcpStream, correct_password: i32) -> Self {
-            ClientHandler { stream, correct_password, has_password_entered: false}
-        } 
-
-        pub fn compare_password(&mut self, entered_password: i32) -> bool{
-            self.has_password_entered = entered_password == self.correct_password;
-            self.has_password_entered
+            ClientHandler {
+                stream,
+                correct_password,
+                has_password_entered: false,
+            }
         }
 
-        pub fn handle_client_messages (&mut self){
+        pub fn handle_client_messages(&mut self) {
             let mut message: [u8; MESSAGE_NUMBER_OF_BYTES];
             while {
                 message = [0 as u8; MESSAGE_NUMBER_OF_BYTES];
@@ -107,49 +85,53 @@ mod client {
 
         fn message_handle(
             &mut self,
-            read_message: Result<[u8; MESSAGE_NUMBER_OF_BYTES], std::io::Error>
+            read_message: Result<[u8; MESSAGE_NUMBER_OF_BYTES], std::io::Error>,
         ) -> bool {
             match read_message {
                 Ok(message) => {
-                    self.message_recieved(message);                    
+                    self.report_when_message_is_not_empty(message);
                     true
                 }
-                Err(_) => {               
-                    false
-                }
+                Err(_) => false,
             }
         }
 
-        fn message_recieved(&mut self, message: [u8; MESSAGE_NUMBER_OF_BYTES]){
-            let input_byte_array = InputByteArray::new(message);
+        fn report_when_message_is_not_empty(&mut self, message: [u8; MESSAGE_NUMBER_OF_BYTES]) {
+            let message_byte_array = InputByteArray::new(message);
+            if message_byte_array.is_empty() {
+                return;
+            }
+            self.check_password(message_byte_array);
+        }
+
+        fn message_recieved(&mut self, message: InputByteArray) {
+            execute_inputs(message);
+        }
+
+        fn check_password(&mut self, message: InputByteArray) {
             if !self.has_password_entered {
-                println!("hola1");
-                self.has_password_entered = self.check_password(input_byte_array);
-            } else {
-                println!("hola2");
-                execute_inputs(input_byte_array);
+                self.has_password_entered = self.validate_password(message);
+                return;
             }
+            self.message_recieved(message);
         }
 
-        fn check_password(&mut self, input_byte_array: InputByteArray) -> bool {
+        fn validate_password(&self, input_byte_array: InputByteArray) -> bool {
             let password_array = input_byte_array.get_password();
             let entered_password = transform_array_of_u8_to_i32(password_array);
             self.compare_password(entered_password)
         }
-        
-    }
 
-    fn execute_inputs(input_byte_array: InputByteArray){
-        if !input_byte_array.is_empty(){
-            let mouse_inputs = mouse_input::MouseInputs::new(input_byte_array);
-            mouse_inputs.execute_mouse_inputs();
+        pub fn compare_password(&self, entered_password: i32) -> bool {
+            entered_password == self.correct_password
         }
     }
 
-    
+    fn execute_inputs(input_byte_array: InputByteArray) {
+        let mouse_inputs = mouse_input::MouseInputs::new(input_byte_array);
+        mouse_inputs.execute_mouse_inputs();
+    }
 }
-
-
 
 mod mouse_input {
     use crate::{four_bytes_into_i32::transform_array_of_u8_to_i32, message::InputByteArray};
@@ -261,9 +243,7 @@ mod mouse_input {
                 let bit_value = 2_u8.pow(i as u32);
                 result[i] = new_byte >= bit_value;
                 new_byte = new_byte - bit_value * result[i] as u8;
-                print!("{}", bit_value);
             }
-            println!("");
             result
         }
     }
@@ -323,7 +303,6 @@ mod message {
             }
             true
         }
-        
     }
 }
 
