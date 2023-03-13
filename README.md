@@ -4,11 +4,11 @@ Misko is a system for controlling the pointer of a desktop with a mobile device.
 
 Misko desktop will support the following Operating Systems:
 
-    o Windows
+- Windows
 
 Misko mobile will support the following Operating Systems:
 
-    o Android
+- Android
   
   
  This project is being made as the thesis of my university degree.
