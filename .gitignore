@@ -1,2 +1,6 @@
-/client_desktop/target
-/server_desktop/target
+/misko_android/.gradle
+/misko_android/.idea
+/misko_android/target
+/misko_android/app/build
+
+/misko_desktop/src-tauri/target

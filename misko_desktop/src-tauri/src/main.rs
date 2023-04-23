@@ -1,10 +1,27 @@
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
+
+use std::str::FromStr;
+
 use server::Server;
 
-fn main() {
-    let correct_password = 205990267;
-    let server = Server::new("3333", correct_password);
+// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
+#[tauri::command]
+fn run_server(password: &str){
+    let password_numbers = FromStr::from_str(password).unwrap();
+    let server = Server::new("3333", password_numbers);
     server.listen();
 }
+
+fn main() {
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![run_server])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
 
 mod server {
     use std::net::{TcpListener, TcpStream};

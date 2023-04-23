@@ -1,0 +1,43 @@
+[package]
+name = "agdk-eframe"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+winit = { version = "0.27.2", features = [ "android-game-activity" ] }
+wgpu = "0.14.0"
+pollster = "0.2"
+egui = "0.20"
+eframe = { version = "0.20", features = [ "wgpu" ] }
+egui_demo_lib = "0.20"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+env_logger = "0.9"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.11.0"
+
+[patch.crates-io]
+
+# Since Egui currently depends on Winit 0.27 we can't update the examples to use
+# Winit master just yet, and use this branch of Winit with an updated backend
+# based on android-activity
+winit = { git = "https://github.com/rib/winit", branch = "android-activity" }
+#winit = { path = "../../../winit" }
+
+[features]
+default = []
+desktop = []
+
+[lib]
+name="main"
+crate_type=["cdylib"]
+
+[[bin]]
+path="src/lib.rs"
+name="agdk-eframe"
+required-features = [ "desktop" ]

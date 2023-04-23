@@ -1,24 +1,90 @@
+use eframe::egui;
+use eframe::{NativeOptions, Renderer};
+use std::fmt::format;
 use std::net::{TcpStream};
 use std::io::Error;
+use std::sync::Arc;
 use client::Client;
 use mouse_input::MouseInputs;
 use mouse_input::point::Point;
 use mouse_input::clicks::{Clicks, MouseButton};
-//mod client;
- 
-fn main() {
-    //this two variables would be entered by the user
-    let address = "localhost:3333";
-    let password = 205990267;
+use egui::Pos2;
+use winit::event::Touch;
+#[cfg(target_os = "android")]
+use winit::platform::android::activity::AndroidApp;
 
-    let client_wrapped = connection_request(address, password);
+struct MyEguiApp {
+    client: Result<Client, Error>,
+    last_position: Point
+}
 
-    match client_wrapped {
-        Ok(client) => send_mouse_inputs(client),
-        Err(e) => connection_error(e),
+impl MyEguiApp {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let address = "192.168.1.74:3333";
+        let password = 205990267;
+        MyEguiApp { client: connection_request(address, password), last_position: Point::new(0,0)}
+    }
+
+    fn connect(mut self, address: &str, password: i32){
+        self.client = connection_request(address, password);
+    }
+}
+
+impl eframe::App for MyEguiApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let optional_position = ctx.pointer_latest_pos();
+            
+            let text;
+            let position_difference;
+            match optional_position {
+                Some(position) => {
+                    text = format!("{}, {}", position.x, position.y);
+                    position_difference = Point::new(self.last_position.x - position.x as i32, self.last_position.y - position.y as i32);
+                    self.last_position = Point::new(position.x as i32, position.y as i32);
+                    
+                },
+                None => {
+                    text = String::new();
+                    self.last_position = Point::new(0,0);
+                    position_difference = Point::new(0,0);
+                },
+            }
+            let errorText;
+            match &mut self.client {
+                Ok(client) => {
+                    let mouse_input = MouseInputs::new(position_difference, Clicks::new(false, false, MouseButton::Left));
+                    client.send_mouse_input(mouse_input);
+                    errorText = "connected";
+                    
+                },
+                Err(error) =>{
+                    errorText = stringify!(error);
+                },
+            }
+            ui.heading("Hello World!");
+            ui.label("Hello World!");
+            ui.label("Hello World!");
+            ui.label(text);
+            ui.label(errorText);
+            ui.label(format!("{},{}", self.last_position.x, self.last_position.y));
+            //ui.label(format!("{},{}", position_difference.x, position_difference.y));
+
+
+        });
     }
 }
  
+
+fn _main(mut options: NativeOptions) {
+    options.renderer = Renderer::Wgpu;
+    eframe::run_native(
+        "My egui App",
+        options,
+        Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+    );
+}
+
 fn connection_request(address: &str, password: i32) ->Result<Client, Error>{
     handle_connection(TcpStream::connect(address), password)
 }
@@ -44,12 +110,13 @@ fn login(stream: TcpStream, password: i32) -> Client{
     let mut client = Client::new(stream);
 
     client.send_password(password);
+    client.send_mouse_input(MouseInputs::new(Point::new(10,10), Clicks::new(false, false, MouseButton::Left)));
     client
 }
 
  
 
-fn send_mouse_inputs(mut client: Client){
+fn send_mouse_inputs( client:  &mut Client){
     let position = Point::new(10, 10);
     let clicks = Clicks::new(false, false, MouseButton::Left);
     let mouse_input = MouseInputs::new(position, clicks);
@@ -124,8 +191,8 @@ mod mouse_input {
         use crate::transform_i32_to_array_of_u8;
 
         pub struct Point {
-            x: i32,
-            y: i32,
+            pub x: i32,
+            pub y: i32,
         }
 
         impl Point {
@@ -213,4 +280,28 @@ fn transform_i32_to_array_of_u8(number: i32) -> [u8; 4] {
     println!("");
 
     result_array
+}
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+fn android_main(app: AndroidApp) {
+    use winit::platform::android::EventLoopBuilderExtAndroid;
+
+    android_logger::init_once(android_logger::Config::default().with_min_level(log::Level::Info));
+
+    let mut options = NativeOptions::default();
+    options.event_loop_builder = Some(Box::new(move |builder| {
+        builder.with_android_app(app);
+    }));
+    _main(options);
+}
+
+#[cfg(not(target_os = "android"))]
+fn main() {
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Warn) // Default Log Level
+        .parse_default_env()
+        .init();
+
+    _main(NativeOptions::default());
 }
