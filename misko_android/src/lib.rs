@@ -14,15 +14,18 @@ use winit::event::Touch;
 use winit::platform::android::activity::AndroidApp;
 
 struct MyEguiApp {
+    
     client: Result<Client, Error>,
-    last_position: Point
+    last_position: Point,
+    tap_detector: i8,
+    detecting_tap: bool
 }
 
 impl MyEguiApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let address = "192.168.1.74:3333";
         let password = 205990267;
-        MyEguiApp { client: connection_request(address, password), last_position: Point::new(0,0)}
+        MyEguiApp { client: connection_request(address, password), last_position: Point::new(0,0), tap_detector: 8, detecting_tap: false}
     }
 
     fn connect(mut self, address: &str, password: i32){
@@ -37,37 +40,98 @@ impl eframe::App for MyEguiApp {
             
             let text;
             let position_difference;
+            let touch_initiated;
+            let tap_detected;
             match optional_position {
                 Some(position) => {
                     text = format!("{}, {}", position.x, position.y);
-                    position_difference = Point::new(self.last_position.x - position.x as i32, self.last_position.y - position.y as i32);
+                    if self.last_position.equals(Point::new(0,0)){
+                        position_difference = Point::new(0,0);
+                        touch_initiated = true;
+                        self.detecting_tap = true;
+                    }
+                    else {
+                        position_difference = Point::new( position.x as i32 - self.last_position.x,  position.y as i32 - self.last_position.y);
+                        touch_initiated = false;
+                        if self.detecting_tap {
+                            self.tap_detector -= 1;
+                        }
+                        if self.tap_detector < 0 {
+                            self.detecting_tap = false;
+                            self.tap_detector = 8;
+                        }
+                    }
                     self.last_position = Point::new(position.x as i32, position.y as i32);
+                    tap_detected = false
                     
                 },
                 None => {
                     text = String::new();
                     self.last_position = Point::new(0,0);
                     position_difference = Point::new(0,0);
+                    
+                    touch_initiated = false;
+                    if self.detecting_tap {
+                        self.tap_detector -= 1;
+                    }
+                    if self.tap_detector < 0 {
+                        self.detecting_tap = false;
+                        tap_detected = true;
+                        self.tap_detector = 8;
+                    }
+                    else {
+                        tap_detected = false;
+                    }
                 },
             }
-            let errorText;
+            
+            let connectionStatus;
+            let mut message = "".to_owned();
             match &mut self.client {
                 Ok(client) => {
-                    let mouse_input = MouseInputs::new(position_difference, Clicks::new(false, false, MouseButton::Left));
-                    client.send_mouse_input(mouse_input);
-                    errorText = "connected";
+                    if ui.button("left click").clicked() {
+                        let mouse_input = MouseInputs::new(Point::new(0,0), Clicks::new(true, false, MouseButton::Right));
+                        for i in mouse_input.get_byte_array() {
+                            message = format!("{} {}", message, i);
+                        }
+                        client.send_mouse_input(mouse_input);
+                    }
+                    if tap_detected {
+                        ui.label("arhsioetharoishtoiar");
+                        let mouse_input = MouseInputs::new(Point::new(0,0), Clicks::new(true, false, MouseButton::Left));
+                        for i in mouse_input.get_byte_array() {
+                            message = format!("{} {}", message, i);
+                        }
+                        client.send_mouse_input(mouse_input);
+                    }
+                    else {
+                        let mouse_input = MouseInputs::new(position_difference, Clicks::new(false, false, MouseButton::Left));
+                        client.send_mouse_input(mouse_input);
+                    }
+                    connectionStatus = "connected";
                     
                 },
                 Err(error) =>{
-                    errorText = stringify!(error);
+                    connectionStatus = stringify!(error);
                 },
             }
-            ui.heading("Hello World!");
-            ui.label("Hello World!");
-            ui.label("Hello World!");
+            ui.label("Hello");
+            ui.label("Hello");
+            ui.label("Hello");
+            ui.label("Hello");
+            ui.label("Hello");
+            ui.label("Hello");
             ui.label(text);
-            ui.label(errorText);
+            ui.label(connectionStatus);
             ui.label(format!("{},{}", self.last_position.x, self.last_position.y));
+            if touch_initiated {
+                ui.label("touch initiated");
+            }
+            if tap_detected {
+                ui.label("tap detected");
+            }
+            ui.label(message);
+            
             //ui.label(format!("{},{}", position_difference.x, position_difference.y));
 
 
@@ -110,7 +174,6 @@ fn login(stream: TcpStream, password: i32) -> Client{
     let mut client = Client::new(stream);
 
     client.send_password(password);
-    client.send_mouse_input(MouseInputs::new(Point::new(10,10), Clicks::new(false, false, MouseButton::Left)));
     client
 }
 
@@ -212,6 +275,10 @@ mod mouse_input {
                 }
 
                 position_array
+            }
+
+            pub fn equals(&self, other: Point) -> bool {
+                self.x == other.x && self.y == other.y
             }
         }
     }

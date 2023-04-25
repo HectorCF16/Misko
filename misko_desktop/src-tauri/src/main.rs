@@ -6,6 +6,7 @@
 use std::str::FromStr;
 
 use server::Server;
+use local_ip_address::local_ip;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -29,6 +30,7 @@ mod server {
 
     const MESSAGE_NUMBER_OF_BYTES: usize = 50;
     const BITS_32_NUMBER_OF_BYTES: usize = 4;
+    const CLICK_BYTE_POSITION: usize = 8;
 
     pub struct Server {
         listener: TcpListener,
@@ -157,12 +159,20 @@ mod server {
         }
 
         fn execute_inputs(input_byte_array: InputByteArray) {
+            for i in input_byte_array.message {
+                print!("{} ", i);
+            }
+
+            println!();
             let mouse_inputs = mouse_input::MouseInputs::new(input_byte_array);
+            
             mouse_inputs.execute_mouse_inputs();
         }
     }
 
     mod mouse_input {
+        use core::fmt;
+
         use crate::server::{
             four_bytes_into_i32::transform_array_of_u8_to_i32, message::InputByteArray,
             mouse_input::point::Point,
@@ -186,10 +196,16 @@ mod server {
                     mouse_down(self.clicks.get_button());
                 }
                 move_relative(&self.position);
-                println!("x: {}, y: {}", self.position.x, self.position.y);
+                println!("{}", self);
                 if self.clicks.is_up() {
                     mouse_up(self.clicks.get_button());
                 }
+            }
+        }
+
+        impl fmt::Display for MouseInputs {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{}, {}  up: {}, down: {}, but: {:#?}", self.position.x, self.position.y, self.clicks.is_up(), self.clicks.is_down(), self.clicks.get_button())
             }
         }
 
@@ -242,9 +258,9 @@ mod server {
             impl Clicks {
                 pub fn new(byte: u8) -> Self {
                     let array_of_bits = u8_to_bool_array(byte);
-                    let down = array_of_bits[0];
-                    let up = array_of_bits[1];
-                    let right = array_of_bits[2];
+                    let down = array_of_bits[7];
+                    let up = array_of_bits[6];
+                    let right = array_of_bits[5];
                     let button: MouseButton;
                     if !right {
                         button = MouseButton::Left;
@@ -266,6 +282,8 @@ mod server {
                 pub fn get_button(&self) -> MouseButton {
                     self.button
                 }
+
+                
             }
             //byte management function
             fn u8_to_bool_array(byte: u8) -> [bool; 8] {
@@ -284,8 +302,10 @@ mod server {
     mod message {
         use crate::server::{BITS_32_NUMBER_OF_BYTES, MESSAGE_NUMBER_OF_BYTES};
 
+        use super::CLICK_BYTE_POSITION;
+
         pub struct InputByteArray {
-            message: [u8; MESSAGE_NUMBER_OF_BYTES],
+            pub message: [u8; MESSAGE_NUMBER_OF_BYTES],
         }
 
         impl InputByteArray {
@@ -310,13 +330,12 @@ mod server {
                     y_position_bytes[i] = self.message[i + 4];
                 }
 
-                println!("{:#?}", y_position_bytes);
 
                 y_position_bytes
             }
 
             pub fn get_mouse_clicks(&self) -> u8 {
-                self.message[BITS_32_NUMBER_OF_BYTES]
+                self.message[CLICK_BYTE_POSITION]
             }
 
             pub fn get_password(&self) -> [u8; BITS_32_NUMBER_OF_BYTES] {
