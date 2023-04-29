@@ -28,7 +28,7 @@ mod server {
     use std::net::{TcpListener, TcpStream};
     use std::thread;
 
-    const MESSAGE_NUMBER_OF_BYTES: usize = 50;
+    const MESSAGE_NUMBER_OF_BYTES: usize = 9;
     const BITS_32_NUMBER_OF_BYTES: usize = 4;
     const CLICK_BYTE_POSITION: usize = 8;
 
@@ -87,7 +87,7 @@ mod server {
             four_bytes_into_i32::transform_array_of_u8_to_i32, message::InputByteArray, mouse_input,
         };
 
-        const MESSAGE_NUMBER_OF_BYTES: usize = 50;
+        const MESSAGE_NUMBER_OF_BYTES: usize = 9;
 
         pub struct ClientHandler {
             stream: TcpStream,
