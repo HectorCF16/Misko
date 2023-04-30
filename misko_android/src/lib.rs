@@ -1,5 +1,6 @@
 use eframe::egui;
 use eframe::{NativeOptions, Renderer};
+use egui::style::Margin;
 use std::fmt::format;
 use std::net::{TcpStream};
 use std::io::Error;
@@ -9,7 +10,7 @@ use client::Client;
 use mouse_input::MouseInputs;
 use mouse_input::point::Point;
 use mouse_input::clicks::{Clicks, MouseButton};
-use egui::{Pos2, Grid, Ui};
+use egui::{Pos2, Grid, Ui, InputState, Vec2, CentralPanel};
 use winit::event::Touch;
 #[cfg(target_os = "android")]
 use winit::platform::android::activity::AndroidApp;
@@ -31,61 +32,92 @@ struct TouchPadScreen {
 }
 
 struct ConnectionScreen {
-    port_clicked: bool
+    focus: Focus,
+    ip: String,
+    port: String,
+    password: String,
+}
+
+enum Focus {
+    Ip,
+    Port,
+    Password,
+    NoFocus
 }
 
 impl MyEguiApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        MyEguiApp { screen: Screens::Connection(ConnectionScreen { port_clicked: false })}
+        MyEguiApp { screen: Screens::Connection(ConnectionScreen { focus: Focus::NoFocus, ip: "192.168.1.74".to_owned(), port: "3333".to_owned(), password: "205990267".to_owned() })}
     }
 }
 
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            //default pixels_per_point in egui are 2.75
+            frame.set_centered();
+            ctx.input_mut().pixels_per_point = 4.0;
             match &mut self.screen {
                 Screens::Connection(connection_screen) => {
-                    let mut ip = "192.168.1.74";
-                    let mut port = "3333".to_owned();
-                    let mut password = "205990267";
-
-                    /*
-                    Grid::new("num_pad").show(ui, |ui| {
-                        //port = button("7", ui, port);
-                        ui.button("8");
-                        ui.button("9");
-                        ui.button("erase");
-                        ui.end_row();
-                        ui.button("4");
-                        ui.button("5");
-                        ui.button("6");
-                        ui.button("enter");
-                        ui.end_row();
-                        ui.button("1");
-                        ui.button("2");
-                        ui.button("3");
-                        ui.end_row();
-                        ui.button("0");
-                        self.screen = Screens::Connection(ConnectionScreen { port_clicked: true });
-
-                    });
-                     
                     
-                    if ui.button(port).clicked() || connection_screen.port_clicked { 
-                        
-                    }; */
-                    if ui.text_edit_singleline(&mut ip).clicked() {
+                    let mut login_try = false;
+                    Grid::new("connection_form").show(ui, |ui| {
+                        ui.label("   ");
+                        ui.label("Ip:");
+                        if ui.button(connection_screen.ip.clone()).clicked() {
+                            connection_screen.focus = Focus::Ip;
+                        }
+                        ui.end_row();
+                        ui.label("   ");
+                        ui.label("Port:");
+                        if ui.button(connection_screen.port.clone()).clicked(){
+                            connection_screen.focus = Focus::Port;
+                        }
+                        ui.end_row();
+                        ui.label("   ");
+                        ui.label("Password:");
+                        if ui.button(connection_screen.password.clone()).clicked() {
+                            connection_screen.focus = Focus::Password;
+                        }
+                        ui.end_row();
+                        ui.label("         ");
 
+                        login_try = ui.button("Try to connect").clicked();
+                    });
+                    
+                    
+                    let password = connection_screen.password.parse();
+                    
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    ui.label("");
+                    match &mut connection_screen.focus {
+                        Focus::Ip => {
+                            create_numpad(ui, &mut connection_screen.ip);
+                        },
+                        Focus::Port => {
+                            create_numpad(ui, &mut connection_screen.port);
+                        },
+                        Focus::Password => {
+                            create_numpad(ui, &mut connection_screen.password);
+                        },
+                        Focus::NoFocus => {},
                     }
-                    if ui.text_edit_singleline(&mut password).clicked() {
 
-                    }
-                    let password = password.parse();
-
-                    if ui.button("Try to connect").clicked() {
+                    if login_try {
                         match password {
                             Ok(password) =>  {
-                                match connection_request(format!("{}:{}", ip, port).as_str(), password) {
+                                match connection_request(format!("{}:{}", connection_screen.ip, connection_screen.port).as_str(), password) {
                                     Ok(client) => {
                                         self.screen = Screens::TouchPad(TouchPadScreen { client, last_position: Point::new(0,0), just_clicked: false, drawing_mode: false });
                                     },
@@ -98,13 +130,13 @@ impl eframe::App for MyEguiApp {
                                 ui.label("password must be an integer!!!");
                             },
                         }
-                        
                     }
                 },
                 Screens::TouchPad(touchpad) => {
                     let optional_position = ctx.pointer_latest_pos();
                     let position_difference;
                     let mut clicks = Clicks::new(false, false, MouseButton::Left);
+                    
 
                     match optional_position {
                         Some(position) => {
@@ -116,7 +148,7 @@ impl eframe::App for MyEguiApp {
                                 }
                             }
                             else {
-                                position_difference = Point::new( position.x as i32 - touchpad.last_position.x,  position.y as i32 - touchpad.last_position.y);
+                                position_difference = Point::new( (position.x as i32 - touchpad.last_position.x) * 3 / 2,  (position.y as i32 - touchpad.last_position.y)* 3 / 2);
                             }
 
                             touchpad.last_position = Point::new(position.x as i32, position.y as i32);
@@ -130,185 +162,73 @@ impl eframe::App for MyEguiApp {
                         },
                     }
 
+                    
+                    if ui.add(egui::Button::new("drawing mode").min_size(egui::Vec2::new(150.0,75.0))).clicked() {
+                        touchpad.drawing_mode = !touchpad.drawing_mode;
+                    }
+
                     if !touchpad.drawing_mode {
                     
                         Grid::new("touchpad_buttons").show(ui, |ui| {
-                            if ui.add(egui::Button::new("left_click").min_size(egui::Vec2::new(200.0,100.0))).clicked() {
+                            if ui.add(egui::Button::new("left_click").min_size(egui::Vec2::new(150.0,75.0))).clicked() {
                                 clicks = Clicks::new(true, false, MouseButton::Left);
                                 touchpad.just_clicked = true;
                             }
-                            /*
-                            if ui.button("left click").clicked() {
-                                clicks = Clicks::new(true, false, MouseButton::Left);
-                                touchpad.just_clicked = true;
-                                //ui.label(format!());
-                            } */
                             else {
                                 if touchpad.just_clicked {
                                     clicks = Clicks::new(false, true, MouseButton::Left);
                                 }
                                 touchpad.just_clicked = false;
-                            }/*
-                            if ui.button("right click").clicked() {
-                                //clicks = Clicks::new(true, false, MouseButton::Right);
-                                //touchpad.just_clicked = true;
                             }
-                            else {
-                                if touchpad.just_clicked {
-                                    
-                                }
-                                touchpad.just_clicked = false;
-                            }
-                            */
                         });
                     } 
-                    ui.label(format!("{}", clicks.get_byte() as i32));
                     let mouse_input = MouseInputs::new(position_difference, clicks);
-                    let left_click = Clicks::new(true, false, MouseButton::Left);
-                    ui.label(format!("Left: {}", left_click.get_byte()));
-                    let right_click = Clicks::new(true, false, MouseButton::Right);
-                    ui.label(format!("Right: {}", right_click.get_byte()));
-                    if ui.add(egui::Button::new("drawing mode").min_size(egui::Vec2::new(200.0, 100.0))).clicked() {
-                        touchpad.drawing_mode = !touchpad.drawing_mode;
-                    }
                     
                     touchpad.client.send_mouse_input(mouse_input);
                     
                 },
             }
-            
-                
-            /*
-                let text;
-                let position_difference;
-                let touch_initiated;
-                let tap_detected;
-                match optional_position {
-                    Some(position) => {
-                        text = format!("{}, {}", position.x, position.y);
-                        if self.screen.last_position.equals(Point::new(0,0)){
-                            position_difference = Point::new(0,0);
-                            touch_initiated = true;
-                            self.screen.detecting_tap = true;
-                        }
-                        else {
-                            position_difference = Point::new( position.x as i32 - self.screen.last_position.x,  position.y as i32 - self.screen.last_position.y);
-                            touch_initiated = false;
-                            if self.screen.detecting_tap {
-                                self.screen.tap_detector -= 1;
-                            }
-                            if self.screen.tap_detector < 0 {
-                                self.screen.detecting_tap = false;
-                                self.screen.tap_detector = 8;
-                            }
-                        }
-                        self.screen.last_position = Point::new(position.x as i32, position.y as i32);
-                        tap_detected = false
-                        
-                    },
-                    None => {
-                        text = String::new();
-                        self.screen.last_position = Point::new(0,0);
-                        position_difference = Point::new(0,0);
-                        
-                        touch_initiated = false;
-                        if self.screen.detecting_tap {
-                            self.screen.tap_detector -= 1;
-                        }
-                        if self.screen.tap_detector < 0 {
-                            self.screen.detecting_tap = false;
-                            tap_detected = true;
-                            self.screen.tap_detector = 8;
-                        }
-                        else {
-                            tap_detected = false;
-                        }
-                    },
-                }
-                
-                let connectionStatus;
-                let mut message = "".to_owned();
-                match &mut self.client {
-                    Ok(client) => {
-                        if ui.button("left click").clicked() {
-                            let mouse_input = MouseInputs::new(Point::new(0,0), Clicks::new(true, false, MouseButton::Right));
-                            for i in mouse_input.get_byte_array() {
-                                message = format!("{} {}", message, i);
-                            }
-                            client.send_mouse_input(mouse_input);
-                        }
-                        if tap_detected {
-                            ui.label("arhsioetharoishtoiar");
-                            let mouse_input = MouseInputs::new(Point::new(0,0), Clicks::new(true, false, MouseButton::Left));
-                            for i in mouse_input.get_byte_array() {
-                                message = format!("{} {}", message, i);
-                            }
-                            client.send_mouse_input(mouse_input);
-                        }
-                        else {
-                            let mouse_input = MouseInputs::new(position_difference, Clicks::new(false, false, MouseButton::Left));
-                            client.send_mouse_input(mouse_input);
-                        }
-                        connectionStatus = "connected";
-                        
-                    },
-                    Err(error) =>{
-                        connectionStatus = stringify!(error);
-                    },
-                }
-                ui.label("Hello");
-                ui.label("Hello");
-                ui.label("Hello");
-                ui.label("Hello");
-                ui.label("Hello");
-                ui.label("Hello");
-                ui.label(text);
-                ui.label(connectionStatus);
-                ui.label(format!("{},{}", self.screen.last_position.x, self.screen.last_position.y));
-                if touch_initiated {
-                    ui.label("touch initiated");
-                }
-                if tap_detected {
-                    ui.label("tap detected");
-                }
-                ui.label(message);
-                 */
-                //ui.label(format!("{},{}", position_difference.x, position_difference.y));
         });
     }
 }
 
-fn create_numpad(ui: &mut Ui, port: &mut String) {
+fn create_numpad(ui: &mut Ui, input_reference: &mut String) {
     Grid::new("num_pad").show(ui, |ui| {
-        let seven = "7";
-        if ui.button("7").clicked() {
-            port.push_str(seven);
-        };
-        ui.button("8");
-        ui.button("9");
-        ui.button("erase");
+        
+        ui.label("     ");
+        button("7", ui, input_reference);
+        button("8", ui, input_reference);
+        button("7", ui, input_reference);
+
         ui.end_row();
-        ui.button("4");
-        ui.button("5");
-        ui.button("6");
-        ui.button("enter");
+
+        ui.label("     ");
+        button("4", ui, input_reference);
+        button("5", ui, input_reference);
+        button("6", ui, input_reference);
+        
         ui.end_row();
-        ui.button("1");
-        ui.button("2");
-        ui.button("3");
+
+        ui.label("     ");
+        button("1", ui, input_reference);
+        button("2", ui, input_reference);
+        button("3", ui, input_reference);
+        if ui.button("erase").clicked(){
+            input_reference.pop();
+        }
+
         ui.end_row();
-        ui.button("0");
+
+        ui.label("     ");
+        button("0", ui, input_reference);
+        button(".", ui, input_reference);
 
     });
 }
 
-fn button(num: &str,ui: &mut Ui, port: String) -> String {
-    let port = &mut port.clone();
+fn button(num: &str,ui: &mut Ui, input_reference: &mut String)  {
     if ui.button(num).clicked() {
-        port.push_str(num);
-        port.to_string()
-    } else {
-        port.to_string()
+        input_reference.push_str(num);
     }
 }
  
