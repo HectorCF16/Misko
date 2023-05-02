@@ -8,10 +8,17 @@ async function greet() {
   greetMsgEl.textContent = await invoke("run_server", { password: greetInputEl.value });
 }
 
+async function get_ip() {
+  await invoke("get_ip", {  }).then((response) => {
+    document.querySelector("#ip").textContent = "Will listen at address: " + response + ":3333";
+  });
+}
+
 window.addEventListener("DOMContentLoaded", () => {
-  greetInputEl = document.querySelector("#greet-input");
-  greetMsgEl = document.querySelector("#greet-msg");
+  get_ip();
+  greetInputEl = document.querySelector("#password-input");
+  greetMsgEl = document.querySelector("#password-msg");
   document
-    .querySelector("#greet-button")
+    .querySelector("#password-button")
     .addEventListener("click", () => greet());
 });

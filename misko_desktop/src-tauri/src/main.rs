@@ -14,11 +14,18 @@ fn run_server(password: &str){
     let password_numbers = FromStr::from_str(password).unwrap();
     let server = Server::new("3333", password_numbers);
     server.listen();
+    println!("server listening");
+}
+
+#[tauri::command]
+fn get_ip() -> String {
+    format!("{}", local_ip().unwrap())
 }
 
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![run_server])
+        .invoke_handler(tauri::generate_handler![get_ip])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

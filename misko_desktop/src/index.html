@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="style.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri App</title>
+    <title>Misko mouse control</title>
     <script type="module" src="/main.js" defer></script>
     <style>
       .logo.vanilla:hover {
@@ -16,16 +16,21 @@
   <body onload="on_load()">
     <div class="container">
       <h1>Welcome to Misko!</h1>
-      &nbsp;
       <div class="row">
-          <input id="greet-input" placeholder="Password" type="password"/>
+        <h2 id="ip"></h2>
       </div>
+      &nbsp;
+      
+      <div class="row">
+          <input id="password-input" placeholder="Password" type="password"/>
+      </div>
+      
       &nbsp;
       <div>
-        <button id="greet-button" type="button">Listen</button>
+        <button id="password-button" type="button">Listen</button>
       </div>
       &nbsp;
-      <h2 id="greet-msg"></h2>
+      <h2 id="password-msg"></h2>
     </div>
   </body>
 </html>
