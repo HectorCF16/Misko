@@ -1,16 +1,16 @@
-use client::Client;
 use eframe::egui;
 use eframe::{NativeOptions, Renderer};
 use egui::style::Margin;
-use egui::{CentralPanel, Grid, InputState, Pos2, Ui, Vec2};
-use mouse_input::clicks::{Clicks, MouseButton};
-use mouse_input::point::Point;
-use mouse_input::MouseInputs;
 use std::fmt::format;
+use std::net::{TcpStream};
 use std::io::Error;
-use std::net::TcpStream;
 use std::str::FromStr;
 use std::sync::Arc;
+use client::Client;
+use mouse_input::MouseInputs;
+use mouse_input::point::Point;
+use mouse_input::clicks::{Clicks, MouseButton};
+use egui::{Pos2, Grid, Ui, InputState, Vec2, CentralPanel};
 use winit::event::Touch;
 #[cfg(target_os = "android")]
 use winit::platform::android::activity::AndroidApp;
@@ -22,12 +22,11 @@ struct MyEguiApp {
 enum Screens {
     Connection(ConnectionScreen),
     TouchPad(TouchPadScreen),
-    Menu(MenuScreen),
 }
 
 struct TouchPadScreen {
     client: Client,
-    last_position: Point,
+    last_position: Point, 
     just_clicked: bool,
     drawing_mode: bool,
 }
@@ -39,27 +38,16 @@ struct ConnectionScreen {
     password: String,
 }
 
-struct MenuScreen {
-    there_is_connection: bool,
-}
-
 enum Focus {
     Ip,
     Port,
     Password,
-    NoFocus,
+    NoFocus
 }
 
 impl MyEguiApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        MyEguiApp {
-            screen: Screens::Connection(ConnectionScreen {
-                focus: Focus::NoFocus,
-                ip: "192.168.1.74".to_owned(),
-                port: "3333".to_owned(),
-                password: "205990267".to_owned(),
-            }),
-        }
+        MyEguiApp { screen: Screens::Connection(ConnectionScreen { focus: Focus::NoFocus, ip: "192.168.1.74".to_owned(), port: "3333".to_owned(), password: "205990267".to_owned() })}
     }
 }
 
@@ -67,16 +55,13 @@ impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             //default pixels_per_point in egui are 2.75
+            frame.set_centered();
             ctx.input_mut().pixels_per_point = 4.0;
             match &mut self.screen {
                 Screens::Connection(connection_screen) => {
-                    let password = connection_screen.password.parse();
+                    
                     let mut login_try = false;
-
                     Grid::new("connection_form").show(ui, |ui| {
-                        //this is done cause egui in android currently doesn't support, i think
-                        //(IDEA) I could implement a system for adjusting the position of the elements
-                        //with percentages of the screen size
                         ui.label("   ");
                         ui.label("Ip:");
                         if ui.button(connection_screen.ip.clone()).clicked() {
@@ -85,7 +70,7 @@ impl eframe::App for MyEguiApp {
                         ui.end_row();
                         ui.label("   ");
                         ui.label("Port:");
-                        if ui.button(connection_screen.port.clone()).clicked() {
+                        if ui.button(connection_screen.port.clone()).clicked(){
                             connection_screen.focus = Focus::Port;
                         }
                         ui.end_row();
@@ -99,7 +84,10 @@ impl eframe::App for MyEguiApp {
 
                         login_try = ui.button("Try to connect").clicked();
                     });
-
+                    
+                    
+                    let password = connection_screen.password.parse();
+                    
                     ui.label("");
                     ui.label("");
                     ui.label("");
@@ -113,115 +101,91 @@ impl eframe::App for MyEguiApp {
                     ui.label("");
                     ui.label("");
                     ui.label("");
-
                     match &mut connection_screen.focus {
                         Focus::Ip => {
                             create_numpad(ui, &mut connection_screen.ip);
-                        }
+                        },
                         Focus::Port => {
                             create_numpad(ui, &mut connection_screen.port);
-                        }
+                        },
                         Focus::Password => {
                             create_numpad(ui, &mut connection_screen.password);
-                        }
-                        Focus::NoFocus => {}
+                        },
+                        Focus::NoFocus => {},
                     }
+
                     if login_try {
                         match password {
-                            Ok(password) => {
-                                match connection_request(
-                                    format!("{}:{}", connection_screen.ip, connection_screen.port)
-                                        .as_str(),
-                                    password,
-                                ) {
+                            Ok(password) =>  {
+                                match connection_request(format!("{}:{}", connection_screen.ip, connection_screen.port).as_str(), password) {
                                     Ok(client) => {
-                                        self.screen = Screens::TouchPad(TouchPadScreen {
-                                            client,
-                                            last_position: Point::new(0, 0),
-                                            just_clicked: false,
-                                            drawing_mode: false,
-                                        });
-                                    }
+                                        self.screen = Screens::TouchPad(TouchPadScreen { client, last_position: Point::new(0,0), just_clicked: false, drawing_mode: false });
+                                    },
                                     Err(error) => {
                                         ui.label(format!("{}", error).as_str());
-                                    }
+                                    },
                                 }
-                            }
+                            },
                             Err(_) => {
-                                ui.heading("The password must be an integer!!!");
-                            }
+                                ui.label("password must be an integer!!!");
+                            },
                         }
                     }
-                }
+                },
                 Screens::TouchPad(touchpad) => {
                     let optional_position = ctx.pointer_latest_pos();
                     let position_difference;
                     let mut clicks = Clicks::new(false, false, MouseButton::Left);
+                    
 
                     match optional_position {
                         Some(position) => {
                             //ui.label(format!("{}, {}", position.x, position.y));
-                            if touchpad.last_position.equals(Point::new(0, 0)) {
-                                position_difference = Point::new(0, 0);
+                            if touchpad.last_position.equals(Point::new(0,0)){
+                                position_difference = Point::new(0,0);
                                 if touchpad.drawing_mode {
-                                    clicks = Clicks::new(true, false, MouseButton::Left);
+                                    clicks = Clicks::new(true, false,MouseButton::Left);
                                 }
-                            } else {
-                                position_difference = Point::new(
-                                    (position.x as i32 - touchpad.last_position.x) * 3 / 2,
-                                    (position.y as i32 - touchpad.last_position.y) * 3 / 2,
-                                );
+                            }
+                            else {
+                                position_difference = Point::new( (position.x as i32 - touchpad.last_position.x) * 3 / 2,  (position.y as i32 - touchpad.last_position.y)* 3 / 2);
                             }
 
-                            touchpad.last_position =
-                                Point::new(position.x as i32, position.y as i32);
-                        }
+                            touchpad.last_position = Point::new(position.x as i32, position.y as i32);
+                        },
                         None => {
                             if touchpad.drawing_mode {
                                 clicks = Clicks::new(false, true, MouseButton::Left);
                             }
-                            touchpad.last_position = Point::new(0, 0);
-                            position_difference = Point::new(0, 0);
-                        }
+                            touchpad.last_position = Point::new(0,0);
+                            position_difference = Point::new(0,0);
+                        },
                     }
 
-                    if ui
-                        .add(
-                            egui::Button::new("drawing mode")
-                                .min_size(egui::Vec2::new(150.0, 75.0)),
-                        )
-                        .clicked()
-                    {
+                    
+                    if ui.add(egui::Button::new("drawing mode").min_size(egui::Vec2::new(150.0,75.0))).clicked() {
                         touchpad.drawing_mode = !touchpad.drawing_mode;
                     }
 
                     if !touchpad.drawing_mode {
+                    
                         Grid::new("touchpad_buttons").show(ui, |ui| {
-                            if ui
-                                .add(
-                                    egui::Button::new("left_click")
-                                        .min_size(egui::Vec2::new(150.0, 75.0)),
-                                )
-                                .clicked()
-                            {
+                            if ui.add(egui::Button::new("left_click").min_size(egui::Vec2::new(150.0,75.0))).clicked() {
                                 clicks = Clicks::new(true, false, MouseButton::Left);
                                 touchpad.just_clicked = true;
-                            } else {
+                            }
+                            else {
                                 if touchpad.just_clicked {
                                     clicks = Clicks::new(false, true, MouseButton::Left);
                                 }
                                 touchpad.just_clicked = false;
                             }
                         });
-                    }
+                    } 
                     let mouse_input = MouseInputs::new(position_difference, clicks);
-
+                    
                     touchpad.client.send_mouse_input(mouse_input);
-                }
-                Screens::Menu(menu) => {
-                    if menu.there_is_connection {
-                        ui.button("Close connection.");
-                    }
+                    
                 },
             }
         });
@@ -230,47 +194,44 @@ impl eframe::App for MyEguiApp {
 
 fn create_numpad(ui: &mut Ui, input_reference: &mut String) {
     Grid::new("num_pad").show(ui, |ui| {
-        ui.label("       ");
+        
+        ui.label("     ");
         button("7", ui, input_reference);
         button("8", ui, input_reference);
         button("7", ui, input_reference);
 
         ui.end_row();
 
-        ui.label("       ");
+        ui.label("     ");
         button("4", ui, input_reference);
         button("5", ui, input_reference);
         button("6", ui, input_reference);
-
+        
         ui.end_row();
 
-        ui.label("       ");
+        ui.label("     ");
         button("1", ui, input_reference);
         button("2", ui, input_reference);
         button("3", ui, input_reference);
+        if ui.button("erase").clicked(){
+            input_reference.pop();
+        }
 
         ui.end_row();
 
-        ui.label("       ");
+        ui.label("     ");
         button("0", ui, input_reference);
         button(".", ui, input_reference);
-        if ui
-            .add(egui::Button::new("erase").min_size(Vec2::new(40.0, 40.0)))
-            .clicked()
-        {
-            input_reference.pop();
-        }
+
     });
 }
 
-fn button(num: &str, ui: &mut Ui, input_reference: &mut String) {
-    if ui
-        .add(egui::Button::new(num).min_size(Vec2::new(40.0, 40.0)))
-        .clicked()
-    {
+fn button(num: &str,ui: &mut Ui, input_reference: &mut String)  {
+    if ui.button(num).clicked() {
         input_reference.push_str(num);
     }
 }
+ 
 
 fn _main(mut options: NativeOptions) {
     options.renderer = Renderer::Wgpu;
@@ -281,16 +242,17 @@ fn _main(mut options: NativeOptions) {
     );
 }
 
-fn connection_request(address: &str, password: i32) -> Result<Client, Error> {
+fn connection_request(address: &str, password: i32) ->Result<Client, Error>{
     handle_connection(TcpStream::connect(address), password)
 }
+ 
 
-fn handle_connection(tcp_stream: Result<TcpStream, Error>, password: i32) -> Result<Client, Error> {
-    let client: Result<Client, Error>;
+fn handle_connection(tcp_stream: Result<TcpStream, Error>, password: i32) ->  Result<Client, Error>{
+    let client:  Result<Client, Error>;
     match tcp_stream {
         Ok(stream) => {
             client = Ok(login(stream, password));
-        }
+        },
         Err(e) => {
             client = Err(e);
         }
@@ -300,7 +262,7 @@ fn handle_connection(tcp_stream: Result<TcpStream, Error>, password: i32) -> Res
     client
 }
 
-fn login(stream: TcpStream, password: i32) -> Client {
+fn login(stream: TcpStream, password: i32) -> Client{
     println!("Successfully connected to server in port 3333");
     let mut client = Client::new(stream);
 
@@ -308,9 +270,21 @@ fn login(stream: TcpStream, password: i32) -> Client {
     client
 }
 
+ 
+
+fn send_mouse_inputs( client:  &mut Client){
+    let position = Point::new(10, 10);
+    let clicks = Clicks::new(false, false, MouseButton::Left);
+    let mouse_input = MouseInputs::new(position, clicks);
+
+    client.send_mouse_input(mouse_input);
+}
+
+ 
+
 mod client {
-    use crate::{mouse_input::MouseInputs, transform_i32_to_array_of_u8};
-    use std::{io::Write, net::TcpStream};
+    use std::{net::TcpStream, io::Write};
+    use crate::{transform_i32_to_array_of_u8, mouse_input::{MouseInputs}};
 
     pub struct Client {
         stream: TcpStream,
@@ -321,23 +295,22 @@ mod client {
             Client { stream }
         }
 
-        pub fn send_password(&mut self, password: i32) {
+        pub fn send_password(&mut self, password: i32){
             let password_array = transform_i32_to_array_of_u8(password);
 
             self.stream.write(&password_array);
         }
 
-        pub fn send_mouse_input(&mut self, mouse_input: MouseInputs) {
+        pub fn send_mouse_input(&mut self, mouse_input: MouseInputs){
             let message_array = mouse_input.get_byte_array();
 
             self.stream.write(&message_array);
         }
+    }    
 
-        pub fn close_connection(&mut self) {
-            self.stream.shutdown(std::net::Shutdown::Both);
-        }
-    }
 }
+
+ 
 
 mod mouse_input {
     use clicks::Clicks;
@@ -360,7 +333,7 @@ mod mouse_input {
             let position_array = self.position.get_byte_array();
             let clicks_byte = self.clicks.get_byte();
 
-            for i in 0..8 {
+            for i in 0..8{
                 message[i] = position_array[i];
             }
 
@@ -382,7 +355,7 @@ mod mouse_input {
             pub fn new(x: i32, y: i32) -> Self {
                 Point { x, y }
             }
-
+ 
             pub fn get_byte_array(&self) -> [u8; 8] {
                 let mut position_array = [0 as u8; 8];
 
@@ -438,9 +411,11 @@ mod mouse_input {
     }
 }
 
-fn connection_error(e: Error) {
+fn connection_error(e: Error){
     println!("Failed to connect: {}", e);
 }
+
+ 
 
 fn transform_i32_to_array_of_u8(number: i32) -> [u8; 4] {
     //si el byte mes significatiu es major que 128 significa que el nombre es negatiu
@@ -451,17 +426,17 @@ fn transform_i32_to_array_of_u8(number: i32) -> [u8; 4] {
     println!("{}", positive_number);
     let mut result_array = [0 as u8; 4];
     //suposant que el byte en el lloc 0 de l'array es el mes significatiu i el que porta el bit negatiu
-
+    
     for i in 0..3 {
         print!("byte {}:", 3 - i);
         result_array[3 - i] = ((positive_number >> 8 * i) & 0xff) as u8;
         println!("{}", result_array[3 - i]);
     }
     print!("byte 0:");
-    let negative_bit = if is_negative { 128 as u8 } else { 0 as u8 };
+    let negative_bit = if is_negative {128 as u8} else {0 as u8};
     result_array[0] = ((positive_number >> 8 * 3) & 0xff) as u8 + negative_bit;
     println!("{}", result_array[0]);
-
+    
     println!("");
 
     result_array
