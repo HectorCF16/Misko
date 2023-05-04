@@ -1,14 +1,18 @@
 # Misko
 
-Misko is a system for controlling the pointer of a desktop with a mobile device. In order to use this system it's mandatory to install Misko in a desktop and a mobile, with their respective versions.
+Misko is a system for controlling the pointer of a desktop with a mobile device. In order to use this system it's mandatory to install both Misko desktop and android.
 
-Misko desktop will support the following Operating Systems:
+Misko desktop currently supports the following Operating Systems:
 
 - Windows
 
-Misko mobile will support the following Operating Systems:
+Misko mobile currently supports the following Operating Systems:
 
 - Android
   
+  
+In order to control the pointer is mandatory to:
+- Open Misko desktop, enter a numeric "Password" and press the "Listen" button.
+- Open Misko android, enter the private "Ip" of your computer, "Port" (by default its 3333) and the password you entered before and press the "Try to connect" button.
   
  This project is being made as the thesis of my university degree.
