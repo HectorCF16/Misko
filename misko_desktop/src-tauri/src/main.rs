@@ -8,7 +8,6 @@ use std::str::FromStr;
 use server::Server;
 use local_ip_address::local_ip;
 
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn run_server(password: &str){
     let password_numbers = FromStr::from_str(password).unwrap();
@@ -16,9 +15,17 @@ fn run_server(password: &str){
     server.listen();
 }
 
+#[tauri::command]
+fn get_ip() -> String{
+    match local_ip() {
+        Ok(local_ip_address) => format!("Your ip {:?}:{}", local_ip_address,":3333"),
+        Err(_) => "".to_owned(),
+    }
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![run_server])
+        .invoke_handler(tauri::generate_handler![run_server, get_ip])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
