@@ -9,14 +9,19 @@ use server::Server;
 use local_ip_address::local_ip;
 
 #[tauri::command]
-fn run_server(password: &str){
-    let password_numbers = FromStr::from_str(password).unwrap();
-    let server = Server::new("3333", password_numbers);
-    server.listen();
+fn run_server(password: &str) -> String{
+    match FromStr::from_str(password) { 
+        Ok(password_numbers) => {
+            let server = Server::new("3333", password_numbers);
+            server.listen();
+            "Fine".to_owned()
+        },
+        Err(_) => "Password has to be numeric".to_owned()
+    }
 }
 
 #[tauri::command]
-fn get_ip() -> String{
+fn get_ip() -> String {
     match local_ip() {
         Ok(local_ip_address) => format!("Your ip {:?}:{}", local_ip_address,":3333"),
         Err(_) => "".to_owned(),
